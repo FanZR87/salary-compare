@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Offer 薪资对比工具</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7fa; color: #333; padding: 20px; }
+h1 { text-align: center; margin-bottom: 24px; color: #1a1a2e; font-size: 24px; }
+.toolbar { display: flex; justify-content: center; gap: 12px; margin-bottom: 24px; }
+.toolbar button { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all .2s; }
+.btn-add { background: #4361ee; color: #fff; }
+.btn-add:hover { background: #3a56d4; }
+.btn-clear { background: #e63946; color: #fff; }
+.btn-clear:hover { background: #c1121f; }
+
+.offers-container { display: flex; gap: 20px; overflow-x: auto; padding-bottom: 20px; align-items: flex-start; }
+
+.offer-card { min-width: 340px; max-width: 400px; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.08); padding: 20px; flex-shrink: 0; }
+.offer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.offer-header input { font-size: 18px; font-weight: 700; border: none; border-bottom: 2px solid #e0e0e0; outline: none; width: 200px; padding: 4px 0; }
+.offer-header input:focus { border-color: #4361ee; }
+.btn-remove { background: none; border: none; font-size: 20px; cursor: pointer; color: #999; }
+.btn-remove:hover { color: #e63946; }
+
+.section-title { font-size: 14px; font-weight: 700; color: #4361ee; margin: 16px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #eee; }
+.field { display: flex; align-items: center; margin-bottom: 8px; gap: 6px; }
+.field label { font-size: 13px; color: #555; white-space: nowrap; min-width: 90px; }
+.field input { width: 100px; padding: 6px 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; text-align: right; }
+.field input:focus { outline: none; border-color: #4361ee; }
+.field .unit { font-size: 12px; color: #999; white-space: nowrap; }
+.field-row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+
+.result-card { margin-top: 20px; background: #f0f4ff; border-radius: 10px; padding: 16px; }
+.result-card h3 { font-size: 15px; color: #4361ee; margin-bottom: 12px; }
+.result-row { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; border-bottom: 1px dashed #ddd; }
+.result-row:last-child { border-bottom: none; }
+.result-row .label { color: #666; }
+.result-row .value { font-weight: 600; color: #333; }
+.result-row.highlight { font-size: 15px; }
+.result-row.highlight .value { color: #e63946; }
+.result-row.total { font-size: 16px; background: #4361ee; color: #fff; margin: 8px -16px -16px; padding: 12px 16px; border-radius: 0 0 10px 10px; }
+.result-row.total .label, .result-row.total .value { color: #fff; font-weight: 700; }
+</style>
+</head>
+<body>
+<h1>Offer 薪资对比工具</h1>
+<div class="toolbar">
+  <button class="btn-add" onclick="addOffer()">+ 添加 Offer</button>
+  <button class="btn-clear" onclick="clearAll()">清空全部</button>
+</div>
+<div class="offers-container" id="offers"></div>
+
+<script>
+let offerCount = 0;
+
+const defaultValues = {
+  baseSalary: 20000,
+  gjjBase: 20000, gjjRateSelf: 12, gjjRateCorp: 12,
+  yanglaoBase: 20000, yanglaoRate: 8,
+  yiliaoBase: 20000, yiliaoRate: 2,
+  shengyuBase: 20000, shengyuRate: 0,
+  shiyeBase: 20000, shiyeRate: 0.5,
+  bonusSeparate: 0,
+  bonusInSalary: 0,
+  optionYear: 0,
+  signBonus: 0,
+};
+
+function addOffer() {
+  offerCount++;
+  const id = offerCount;
+  const container = document.getElementById('offers');
+  const card = document.createElement('div');
+  card.className = 'offer-card';
+  card.id = `offer-${id}`;
+  card.innerHTML = `
+    <div class="offer-header">
+      <input type="text" value="Offer ${id}" class="offer-name" />
+      <button class="btn-remove" onclick="removeOffer(${id})">✕</button>
+    </div>
+
+    <div class="section-title">基本薪资</div>
+    <div class="field">
+      <label>基础月薪</label>
+      <input type="number" data-key="baseSalary" value="${defaultValues.baseSalary}" oninput="calc(${id})" />
+      <span class="unit">元/月</span>
+    </div>
+
+    <div class="section-title">公积金</div>
+    <div class="field">
+      <label>缴纳基数</label>
+      <input type="number" data-key="gjjBase" value="${defaultValues.gjjBase}" oninput="calc(${id})" />
+      <span class="unit">元</span>
+    </div>
+    <div class="field">
+      <label>个人比例</label>
+      <input type="number" data-key="gjjRateSelf" value="${defaultValues.gjjRateSelf}" oninput="calc(${id})" step="1" />
+      <span class="unit">%</span>
+    </div>
+    <div class="field">
+      <label>公司比例</label>
+      <input type="number" data-key="gjjRateCorp" value="${defaultValues.gjjRateCorp}" oninput="calc(${id})" step="1" />
+      <span class="unit">%</span>
+    </div>
+
+    <div class="section-title">社保</div>
+    <div class="field">
+      <label>养老保险基数</label>
+      <input type="number" data-key="yanglaoBase" value="${defaultValues.yanglaoBase}" oninput="calc(${id})" />
+      <span class="unit">元</span>
+    </div>
+    <div class="field">
+      <label>养老保险比例</label>
+      <input type="number" data-key="yanglaoRate" value="${defaultValues.yanglaoRate}" oninput="calc(${id})" step="0.1" />
+      <span class="unit">%</span>
+    </div>
+    <div class="field">
+      <label>医疗保险基数</label>
+      <input type="number" data-key="yiliaoBase" value="${defaultValues.yiliaoBase}" oninput="calc(${id})" />
+      <span class="unit">元</span>
+    </div>
+    <div class="field">
+      <label>医疗保险比例</label>
+      <input type="number" data-key="yiliaoRate" value="${defaultValues.yiliaoRate}" oninput="calc(${id})" step="0.1" />
+      <span class="unit">%</span>
+    </div>
+    <div class="field">
+      <label>生育保险基数</label>
+      <input type="number" data-key="shengyuBase" value="${defaultValues.shengyuBase}" oninput="calc(${id})" />
+      <span class="unit">元</span>
+    </div>
+    <div class="field">
+      <label>生育保险比例</label>
+      <input type="number" data-key="shengyuRate" value="${defaultValues.shengyuRate}" oninput="calc(${id})" step="0.1" />
+      <span class="unit">%</span>
+    </div>
+    <div class="field">
+      <label>失业保险基数</label>
+      <input type="number" data-key="shiyeBase" value="${defaultValues.shiyeBase}" oninput="calc(${id})" />
+      <span class="unit">元</span>
+    </div>
+    <div class="field">
+      <label>失业保险比例</label>
+      <input type="number" data-key="shiyeRate" value="${defaultValues.shiyeRate}" oninput="calc(${id})" step="0.1" />
+      <span class="unit">%</span>
+    </div>
+
+    <div class="section-title">年终奖 & 其他</div>
+    <div class="field">
+      <label>年终奖(单独计税)</label>
+      <input type="number" data-key="bonusSeparate" value="${defaultValues.bonusSeparate}" oninput="calc(${id})" />
+      <span class="unit">元/年</span>
+    </div>
+    <div class="field">
+      <label>年终奖(并入工资)</label>
+      <input type="number" data-key="bonusInSalary" value="${defaultValues.bonusInSalary}" oninput="calc(${id})" />
+      <span class="unit">元/年</span>
+    </div>
+    <div class="field">
+      <label>期权回购(年)</label>
+      <input type="number" data-key="optionYear" value="${defaultValues.optionYear}" oninput="calc(${id})" />
+      <span class="unit">元/年</span>
+    </div>
+    <div class="field">
+      <label>当年签字费</label>
+      <input type="number" data-key="signBonus" value="${defaultValues.signBonus}" oninput="calc(${id})" />
+      <span class="unit">元</span>
+    </div>
+
+    <div class="result-card" id="result-${id}"></div>
+  `;
+  container.appendChild(card);
+  calc(id);
+}
+
+function removeOffer(id) {
+  const el = document.getElementById(`offer-${id}`);
+  if (el) el.remove();
+}
+
+function clearAll() {
+  document.getElementById('offers').innerHTML = '';
+  offerCount = 0;
+}
+
+function getVal(id, key) {
+  const card = document.getElementById(`offer-${id}`);
+  const input = card.querySelector(`[data-key="${key}"]`);
+  return parseFloat(input.value) || 0;
+}
+
+function fmt(n) {
+  return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// 个税税率表（年度累计）
+const taxBrackets = [
+  { limit: 36000, rate: 0.03, deduct: 0 },
+  { limit: 144000, rate: 0.10, deduct: 2520 },
+  { limit: 300000, rate: 0.20, deduct: 16920 },
+  { limit: 420000, rate: 0.25, deduct: 31920 },
+  { limit: 660000, rate: 0.30, deduct: 52920 },
+  { limit: 960000, rate: 0.35, deduct: 85920 },
+  { limit: Infinity, rate: 0.45, deduct: 181920 },
+];
+
+// 年终奖单独计税税率表
+const bonusTaxBrackets = [
+  { limit: 3000, rate: 0.03, deduct: 0 },
+  { limit: 12000, rate: 0.10, deduct: 210 },
+  { limit: 25000, rate: 0.20, deduct: 1410 },
+  { limit: 35000, rate: 0.25, deduct: 2660 },
+  { limit: 55000, rate: 0.30, deduct: 4410 },
+  { limit: 80000, rate: 0.35, deduct: 7160 },
+  { limit: Infinity, rate: 0.45, deduct: 15160 },
+];
+
+function calcYearTax(taxableIncome) {
+  if (taxableIncome <= 0) return 0;
+  for (const b of taxBrackets) {
+    if (taxableIncome <= b.limit) {
+      return taxableIncome * b.rate - b.deduct;
+    }
+  }
+  return 0;
+}
+
+function calcBonusTax(bonus) {
+  if (bonus <= 0) return 0;
+  const monthly = bonus / 12;
+  for (const b of bonusTaxBrackets) {
+    if (monthly <= b.limit) {
+      return bonus * b.rate - b.deduct;
+    }
+  }
+  return 0;
+}
+
+function calc(id) {
+  const baseSalary = getVal(id, 'baseSalary');
+  const gjjBase = getVal(id, 'gjjBase');
+  const gjjRateSelf = getVal(id, 'gjjRateSelf') / 100;
+  const gjjRateCorp = getVal(id, 'gjjRateCorp') / 100;
+  const yanglaoBase = getVal(id, 'yanglaoBase');
+  const yanglaoRate = getVal(id, 'yanglaoRate') / 100;
+  const yiliaoBase = getVal(id, 'yiliaoBase');
+  const yiliaoRate = getVal(id, 'yiliaoRate') / 100;
+  const shengyuBase = getVal(id, 'shengyuBase');
+  const shengyuRate = getVal(id, 'shengyuRate') / 100;
+  const shiyeBase = getVal(id, 'shiyeBase');
+  const shiyeRate = getVal(id, 'shiyeRate') / 100;
+  const bonusSeparate = getVal(id, 'bonusSeparate');
+  const bonusInSalary = getVal(id, 'bonusInSalary');
+  const optionYear = getVal(id, 'optionYear');
+  const signBonus = getVal(id, 'signBonus');
+
+  // 月度五险一金（个人）
+  const gjjSelf = gjjBase * gjjRateSelf;
+  const gjjCorp = gjjBase * gjjRateCorp;
+  const yanglao = yanglaoBase * yanglaoRate;
+  const yiliao = yiliaoBase * yiliaoRate;
+  const shengyu = shengyuBase * shengyuRate;
+  const shiye = shiyeBase * shiyeRate;
+  const socialSelf = yanglao + yiliao + shengyu + shiye;
+  const deductMonth = gjjSelf + socialSelf;
+
+  // 年度
+  const gjjSelfYear = gjjSelf * 12;
+  const gjjCorpYear = gjjCorp * 12;
+  const socialSelfYear = socialSelf * 12;
+  const deductYear = deductMonth * 12;
+
+  // 税前总收入 = 月薪*12 + 年终奖（单独+并入） + 期权 + 签字费 + 公积金公司部分
+  const salaryYear = baseSalary * 12;
+  const grossTotal = salaryYear + bonusSeparate + bonusInSalary + optionYear + signBonus + gjjCorpYear;
+
+  // 综合所得应纳税所得额（月薪*12 + 并入工资的年终奖 + 期权 + 签字费 - 五险一金个人 - 免征额60000）
+  const taxableWage = salaryYear + bonusInSalary + optionYear + signBonus - deductYear - 60000;
+  const wageTax = calcYearTax(taxableWage);
+
+  // 年终奖单独计税
+  const bonusTax = calcBonusTax(bonusSeparate);
+
+  const totalTax = wageTax + bonusTax;
+
+  // 税后收入 = 税前总收入 - 五险个人 - 公积金个人 - 个税 + 公积金（公司+个人，到手）
+  // 换一种理解：到手 = (月薪*12 - 社保个人 - 公积金个人 - 工资个税) + 年终奖单独部分 - 年终奖税 + 公积金(个人+公司)
+  const afterTax = salaryYear + bonusInSalary + optionYear + signBonus - socialSelfYear - gjjSelfYear - wageTax
+                   + bonusSeparate - bonusTax
+                   + gjjSelfYear + gjjCorpYear;
+
+  const resultEl = document.getElementById(`result-${id}`);
+  resultEl.innerHTML = `
+    <h3>计算结果（年度）</h3>
+    <div class="result-row"><span class="label">月薪 × 12</span><span class="value">${fmt(salaryYear)}</span></div>
+    <div class="result-row"><span class="label">年终奖(单独计税)</span><span class="value">${fmt(bonusSeparate)}</span></div>
+    <div class="result-row"><span class="label">年终奖(并入工资)</span><span class="value">${fmt(bonusInSalary)}</span></div>
+    <div class="result-row"><span class="label">期权回购(年)</span><span class="value">${fmt(optionYear)}</span></div>
+    <div class="result-row"><span class="label">签字费</span><span class="value">${fmt(signBonus)}</span></div>
+    <div class="result-row"><span class="label">公积金(公司/年)</span><span class="value">${fmt(gjjCorpYear)}</span></div>
+    <div class="result-row highlight"><span class="label">税前总收入</span><span class="value">${fmt(grossTotal)}</span></div>
+    <div class="result-row" style="margin-top:8px"><span class="label">养老保险(个人/年)</span><span class="value">-${fmt(yanglao * 12)}</span></div>
+    <div class="result-row"><span class="label">医疗保险(个人/年)</span><span class="value">-${fmt(yiliao * 12)}</span></div>
+    <div class="result-row"><span class="label">生育保险(个人/年)</span><span class="value">-${fmt(shengyu * 12)}</span></div>
+    <div class="result-row"><span class="label">失业保险(个人/年)</span><span class="value">-${fmt(shiye * 12)}</span></div>
+    <div class="result-row"><span class="label">公积金(个人/年)</span><span class="value">-${fmt(gjjSelfYear)}</span></div>
+    <div class="result-row"><span class="label">综合所得应纳税额</span><span class="value">${fmt(Math.max(taxableWage, 0))}</span></div>
+    <div class="result-row"><span class="label">工资个税</span><span class="value">-${fmt(Math.max(wageTax, 0))}</span></div>
+    <div class="result-row"><span class="label">年终奖个税(单独)</span><span class="value">-${fmt(Math.max(bonusTax, 0))}</span></div>
+    <div class="result-row highlight"><span class="label">个税合计</span><span class="value">-${fmt(Math.max(totalTax, 0))}</span></div>
+    <div class="result-row"><span class="label">公积金到账(个人+公司)</span><span class="value">+${fmt(gjjSelfYear + gjjCorpYear)}</span></div>
+    <div class="result-row total"><span class="label">税后年收入(含公积金)</span><span class="value">${fmt(afterTax)}</span></div>
+  `;
+}
+
+addOffer();
+addOffer();
+</script>
+</body>
+</html>
